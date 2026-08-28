@@ -122,3 +122,22 @@ FROM orders
 GROUP BY DATENAME(Month, created_at), DATEPART(Month, created_at) 
 Order By MIN(DATEPART(Month, created_at)) 
 
+
+
+/*
+Q9. Calculate the session-to-order conversion rate for each `utm_source`. 
+Make sure sessions that never converted are still counted in the denominator.
+*/
+
+SELECT * FROM [dbo].[website_sessions]
+SELECT * FROM [dbo].[orders]
+
+SELECT 
+	Count(ws.website_session_id), ws.utm_source,
+	count(os.order_id)
+
+FROM [website_sessions] ws
+LEft Join orders os 
+ON ws.website_session_id = os.website_session_id
+GROUP BY ws.utm_source
+order by count(os.order_id) desc
