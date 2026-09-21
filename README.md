@@ -1,7 +1,6 @@
-# Toy_Store-plush_Analysis
+# E-Commerce Marketing Channel & Conversion Funnel Analysis
 
 
-in-progress.
 
 
 
