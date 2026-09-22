@@ -220,4 +220,26 @@ ORDER BY p.product_id
 
 -- Q13.Calculate a running (cumulative) total of daily revenue across the full date range using a window function.
 
+WITH DailyRevenue AS (
+    SELECT 
+        CAST(created_at AS Date) AS SaleDate,
+        ROUND(SUM(price_usd), 0) AS [revenue]
+    FROM orders
+    GROUP BY CAST(created_at AS Date)
+)
+SELECT 
+    FORMAT(SaleDate, 'yyyy.MM.dd') AS [Date],
+    SUM(revenue) OVER (ORDER BY SaleDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS [cumulative]
+From DailyRevenue
+ORDER BY SaleDate;
 
+
+
+
+
+
+SELECT 
+	FORMAT(CAST(created_at AS DATE), 'yyyy.MM.dd') AS [datee],
+	ROUND(SUM(price_usd) OVER (ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),0) AS[DSD]
+FROM orders
+ORDER BY [datee]
