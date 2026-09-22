@@ -1,5 +1,4 @@
-# E-Commerce Marketing Channel & Conversion Funnel Analysis
-
+# Marketing Attribution & Customer Acquisition Funnel Analysis
 
 
 
