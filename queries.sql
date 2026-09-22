@@ -229,17 +229,7 @@ WITH DailyRevenue AS (
 )
 SELECT 
     FORMAT(SaleDate, 'yyyy.MM.dd') AS [Date],
-    SUM(revenue) OVER (ORDER BY SaleDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS [cumulative]
+    SUM(revenue) OVER (ORDER BY SaleDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS [cumulative_revenue]
 From DailyRevenue
 ORDER BY SaleDate;
 
-
-
-
-
-
-SELECT 
-	FORMAT(CAST(created_at AS DATE), 'yyyy.MM.dd') AS [datee],
-	ROUND(SUM(price_usd) OVER (ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),0) AS[DSD]
-FROM orders
-ORDER BY [datee]
