@@ -129,9 +129,6 @@ Q9. Calculate the session-to-order conversion rate for each `utm_source`.
 Make sure sessions that never converted are still counted in the denominator.
 */
 
-SELECT * FROM [dbo].[website_sessions]
-SELECT * FROM [dbo].[orders]
-
 SELECT 
 	COALESCE(ws.utm_source, '(direct/none)') AS utm_source,
 	Count(DISTINCT ws.website_session_id) as sessions, 
@@ -174,4 +171,53 @@ HAVING SUM(oi.price_usd) >
 
 
 -- Q11. Using a CTE, calculate monthly revenue, monthly COGS, and the resulting gross margin percentage.
+
+
+With monthly AS(
+	
+	SELECT
+		FORMAT(created_at, 'yyyy-MM') AS [month_number],
+		ROUND(SUM(price_usd), 0) AS [Revenue],
+		ROUND(SUM(cogs_usd), 0) AS [Cost]
+
+	FROM [dbo].[orders]
+	GROUP BY FORMAT(created_at, 'yyyy-MM')
+)
+
+SELECT 
+    month_number,
+	Revenue, 
+	Cost,
+	CONCAT(ROUND((Revenue - Cost) * 100 / Nullif(Revenue, 0),2), '%') AS [Margin]
+
+FROM monthly 
+ORDER BY month_number;
+
+
+
+/* Q12. Using a correlated subquery (e.g. `EXISTS`), flag each order line item as refunded or not, 
+	    then calculate the refund rate (% of items refunded) by product. 
+  */
+
+SELECT 
+	p.product_id			AS [id],
+	p.product_name			AS [product_name],
+	COUNT(*)				AS [items_sold],
+	Count(order_item_refunds.order_item_id)		AS [items_refunded],
+	CONCAT(ROUND(100 * COUNT(order_item_refunds.order_item_id) / COUNT(*), 0), '%') AS [return_rate_pct]
+
+FROM order_items 
+JOIN products p 
+ON order_items.product_id = p.product_id
+LEFT JOIN order_item_refunds 
+ON order_items.order_item_id = order_item_refunds.order_item_id
+
+GROUP BY p.product_id, p.product_name
+ORDER BY p.product_id
+
+
+
+
+-- Q13.Calculate a running (cumulative) total of daily revenue across the full date range using a window function.
+
 
