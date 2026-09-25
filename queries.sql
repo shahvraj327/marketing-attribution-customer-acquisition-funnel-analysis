@@ -217,7 +217,6 @@ ORDER BY p.product_id
 
 
 
-
 -- Q13.Calculate a running (cumulative) total of daily revenue across the full date range using a window function.
 
 WITH DailyRevenue AS (
@@ -232,4 +231,35 @@ SELECT
     SUM(revenue) OVER (ORDER BY SaleDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS [cumulative_revenue]
 From DailyRevenue
 ORDER BY SaleDate;
+
+
+-- Q14.For each calendar year, rank products by total revenue and identify the #1 product each year using `RANK()` or `DENSE_RANK()`.
+
+WITH product_year AS(
+	SELECT 
+       FORMAT(CAST(ord.created_at AS Date), 'yyyy') AS SaleDate,
+		prd.product_id AS [product_ID],
+		prd.product_name AS [product_name],
+		ROUND(SUM(price_usd),0) AS [revenue]
+	FROM order_items ord
+	JOIN products prd 
+		ON ord.product_id = prd.product_id
+	GROUP BY FORMAT(CAST(ord.created_at AS Date), 'yyyy'), prd.product_id, prd.product_name
+), 
+
+ranked AS(
+	SELECT 
+		*,
+		DENSE_RANK() OVER( PARTITION BY SaleDate  ORDER BY [revenue] DESC) AS [revenue_rank]
+	FROM product_year
+)
+
+SELECT 
+	SaleDate,
+	product_id,
+	revenue
+FROM ranked
+WHERE [revenue_rank] = 1
+ORDER BY SaleDate, product_id;
+
 
