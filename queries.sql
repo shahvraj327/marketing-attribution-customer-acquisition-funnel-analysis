@@ -263,3 +263,31 @@ WHERE [revenue_rank] = 1
 ORDER BY SaleDate, product_id;
 
 
+-- Q15.Calculate month-over-month revenue growth percentage using LAG().
+
+WITH calcs AS(
+
+	SELECT 
+		FORMAT(Cast(created_at AS DATE), 'yyyy-MM') AS SaleDate,
+		ROUND(SUM(price_usd), 0) AS [Revenue]
+	FROM orders
+	GROUP BY FORMAT(Cast(created_at AS DATE), 'yyyy-MM')
+),
+Lag_val AS(
+	SELECT 
+		*,
+		LAG([Revenue]) OVER (ORDER BY SaleDate) AS [prev_month]
+ 	FROM calcs
+),
+
+growth AS (
+	SELECT 
+		*,
+		ROUND(100 * (Revenue - [prev_month]) / [prev_month], 2) AS [growth_%]	
+	FROM Lag_val
+)
+
+SELECT
+	*
+FROM growth
+
