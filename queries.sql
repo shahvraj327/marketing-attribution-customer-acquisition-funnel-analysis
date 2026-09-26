@@ -273,21 +273,23 @@ WITH calcs AS(
 	FROM orders
 	GROUP BY FORMAT(Cast(created_at AS DATE), 'yyyy-MM')
 ),
-Lag_val AS(
-	SELECT 
-		*,
-		LAG([Revenue]) OVER (ORDER BY SaleDate) AS [prev_month]
- 	FROM calcs
-),
+	Lag_val AS(
+		SELECT 
+			*,
+			LAG([Revenue]) OVER (ORDER BY SaleDate) AS [prev_month]
+ 		FROM calcs
+	),
 
-growth AS (
-	SELECT 
-		*,
-		ROUND(100 * (Revenue - [prev_month]) / [prev_month], 2) AS [growth_%]	
-	FROM Lag_val
+		growth AS (
+			SELECT 
+				*,
+				ROUND(100 * (Revenue - [prev_month]) / [prev_month], 2) AS [growth_%]	
+			FROM Lag_val
 )
 
 SELECT
 	*
 FROM growth
+
+
 
