@@ -116,7 +116,7 @@ SELECT
 	DATENAME(Month, created_at) as [Month name],
 	Count(order_id) as [count],
     SUM(CASE WHEN items_purchased > 1 THEN 1 ELSE 0  END) as [real_count],
-	Concat(Round(100 * SUM(CASE WHEN items_purchased > 1 THEN 1 ELSE 0  END) / Count(order_id), 2), '%') as [cross_sell_prct] 
+	Concat(Round(100 * CAST(SUM(CASE WHEN items_purchased > 1 THEN 1 ELSE 0  END) AS FLOAT) / Count(order_id), 2), '%') as [cross_sell_prct] 
 FROM orders 
 GROUP BY DATENAME(Month, created_at), DATEPART(Month, created_at) 
 Order By MIN(DATEPART(Month, created_at)) 
@@ -324,36 +324,7 @@ GROUP BY cohort_month
 ORDER BY cohort_month;
 
 
--- Q17.For each `utm_source`, find the top 3 landing pages (a session's *first* pageview) by session volume, using `ROW_NUMBER()`.
-SELECT 
-	MIN(website_pageview_id),
-	website_session_id,
-	pageview_url
-
-FROM [website_pageviews]
-GROUP BY website_session_id, pageview_url
-order by 	MIN(created_at);
-
-
-
-SELECT * FROM [dbo].[website_sessions]
-SELECT * FROM [dbo].[website_pageviews]
-
-
-SELECT 
-	wes.utm_source as [source],
-	wep.pageview_url as [sesion],
-	Count(pageview_url) as [volume]
-
-FROM [website_pageviews]  wep
-JOIN [website_sessions] wes
-ON wep.website_session_id = wes.website_session_id 
-GROUP BY 	wes.utm_source, wep.pageview_url 
-ORDER BY wes.utm_source, volume desc
-
-
-;
-
+-- **Q17.For each `utm_source`, find the top 3 landing pages (a session's *first* pageview) by session volume, using `ROW_NUMBER()`.
 
 WITH first_pages  AS(
 
@@ -372,14 +343,20 @@ calcs AS(
 	FROM first_pages fp
 	JOIN website_pageviews p ON fp.website_session_id = p.website_session_id
 	JOIN website_sessions s ON s.website_session_id = fp.website_session_id
-
 	GROUP BY s.utm_source, 
 			 p.pageview_url
+), 
+ranking AS(
+
+	SELECT
+		*, 
+		ROW_NUMBER() OVER (PARTITION BY utm_source ORDER BY [session_volume] DESC) AS [rank]
+	FROM calcs
 )
-select * from calcs
-order by utm_source, session_volume desc
+SELECT * FROM ranking 
+WHERE [rank] <= 3;
 
-
+	
 
 
 
@@ -409,4 +386,22 @@ SELECT utm_source, landing_page, sessions
 FROM ranked
 WHERE rn <= 3
 ORDER BY utm_source, rn;
+
+
+
+/*
+	Q18.	As a data-quality check, use `ROW_NUMBER()` to identify any duplicate `order_items` rows — 
+		   i.e., the same `order_id` + `product_id` + `price_usd` combination appearing more than once.
+	*/
+	
+WITH cte AS(
+	
+		SELECT
+			*, 
+			ROW_NUMBER() OVER (PARTITiON BY order_id, product_id, price_usd 
+								ORDER BY created_at) as [rnk]
+		FROM order_items	
+	)
+SELECT * FROM CTE WHERE rnk > 1
+
 
