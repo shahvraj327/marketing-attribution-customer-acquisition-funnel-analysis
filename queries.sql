@@ -1,4 +1,3 @@
--- USE [Toy_Store_DB]
 
 -- Q1. Find the total number of orders and total revenue (price_usd) placed in calendar year 2014. 
 
@@ -278,18 +277,136 @@ WITH calcs AS(
 			*,
 			LAG([Revenue]) OVER (ORDER BY SaleDate) AS [prev_month]
  		FROM calcs
-	),
+  ),
 
-		growth AS (
-			SELECT 
-				*,
-				ROUND(100 * (Revenue - [prev_month]) / [prev_month], 2) AS [growth_%]	
-			FROM Lag_val
+	growth AS (
+		SELECT 
+			*,
+			ROUND(100 * (Revenue - [prev_month]) / [prev_month], 2) AS [growth_%]	
+		FROM Lag_val
 )
 
 SELECT
 	*
-FROM growth
+FROM growth;
 
 
+
+/* Q16. For each user, determine their first-ever order month (their "cohort"). 
+	Then, for each cohort, calculate what percentage of users in that cohort went on to place more than one order (repeat purchase rate).
+*/
+
+WITH user_first_order AS(
+	SELECT 
+		[user_id], 
+		MIN(CAST(created_at AS DATE)) AS first_order_date
+    FROM orders
+    GROUP BY user_id
+),
+cohort AS(
+	SELECT 
+		ufo.user_id AS users,
+		FORMAT(ufo.first_order_date, 'yyyy-MM') AS cohort_month,
+		COUNT(o.order_id) AS total_orders
+	FROM user_first_order ufo
+		JOIN orders o ON ufo.user_id = o.user_id
+	GROUP BY ufo.user_id, FORMAT(ufo.first_order_date, 'yyyy-MM')
+)
+SELECT
+    cohort_month,
+    COUNT(users) AS [users_in_cohort],
+	SUM(CASE WHEN total_orders > 1 THEN 1 ELSE 0 END) AS [repeated_purchases],
+	ROUND(100 * SUM(CASE WHEN total_orders > 1 THEN 1 ELSE 0 END) / COUNT(users), 2) AS [rept_purc_pct]
+
+
+FROM cohort
+GROUP BY cohort_month
+ORDER BY cohort_month;
+
+
+-- Q17.For each `utm_source`, find the top 3 landing pages (a session's *first* pageview) by session volume, using `ROW_NUMBER()`.
+SELECT 
+	MIN(website_pageview_id),
+	website_session_id,
+	pageview_url
+
+FROM [website_pageviews]
+GROUP BY website_session_id, pageview_url
+order by 	MIN(created_at);
+
+
+
+SELECT * FROM [dbo].[website_sessions]
+SELECT * FROM [dbo].[website_pageviews]
+
+
+SELECT 
+	wes.utm_source as [source],
+	wep.pageview_url as [sesion],
+	Count(pageview_url) as [volume]
+
+FROM [website_pageviews]  wep
+JOIN [website_sessions] wes
+ON wep.website_session_id = wes.website_session_id 
+GROUP BY 	wes.utm_source, wep.pageview_url 
+ORDER BY wes.utm_source, volume desc
+
+
+;
+
+
+WITH first_pages  AS(
+
+	SELECT 
+		website_session_id,
+		MIN(website_pageview_id) AS first_pageview_id
+	FROM website_pageviews
+	GROUP BY website_session_id
+), 
+calcs AS(
+	
+	SELECT
+		s.utm_source,
+		p.pageview_url,
+		COUNT(fp.website_session_id) AS [session_volume]
+	FROM first_pages fp
+	JOIN website_pageviews p ON fp.website_session_id = p.website_session_id
+	JOIN website_sessions s ON s.website_session_id = fp.website_session_id
+
+	GROUP BY s.utm_source, 
+			 p.pageview_url
+)
+select * from calcs
+order by utm_source, session_volume desc
+
+
+
+
+
+WITH first_pv AS (
+    SELECT
+        website_session_id,
+        pageview_url,
+        ROW_NUMBER() OVER (PARTITION BY website_session_id ORDER BY created_at) AS rn
+    FROM website_pageviews
+),
+landing_pages AS (
+    SELECT fp.website_session_id, fp.pageview_url AS landing_page, ws.utm_source
+    FROM first_pv fp
+    JOIN website_sessions ws ON ws.website_session_id = fp.website_session_id
+    WHERE fp.rn = 1
+),
+lp_counts AS (
+    SELECT COALESCE(utm_source, '(direct/none)') AS utm_source, landing_page, COUNT(*) AS sessions
+    FROM landing_pages
+    GROUP BY utm_source, landing_page
+),
+ranked AS (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY utm_source ORDER BY sessions DESC) AS rn
+    FROM lp_counts
+)
+SELECT utm_source, landing_page, sessions
+FROM ranked
+WHERE rn <= 3
+ORDER BY utm_source, rn;
 
