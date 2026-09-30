@@ -7,8 +7,8 @@
 Which marketing channels, products, and customer behaviors drive revenue, profitability, and repeat purchases for an online retailer?
 
 ## Dataset
-- **Source:** Refer [All_Datasets] 
-- **Size:** 6 relational tables (1.73 Million rows)
+- **Source:** Refer [All_Datasets.zip File] 
+- **Size:** 6 relational tables (1.73 Million rows in total)
 - **Description:** Transactional and web-analytics data for an online store, covering:
   - `orders` — order-level revenue, COGS, and items purchased
   - `order_items` — individual line items per order
