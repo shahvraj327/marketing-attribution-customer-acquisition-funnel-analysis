@@ -356,43 +356,11 @@ ranking AS(
 SELECT * FROM ranking 
 WHERE [rank] <= 3;
 
-	
-
-
-
-WITH first_pv AS (
-    SELECT
-        website_session_id,
-        pageview_url,
-        ROW_NUMBER() OVER (PARTITION BY website_session_id ORDER BY created_at) AS rn
-    FROM website_pageviews
-),
-landing_pages AS (
-    SELECT fp.website_session_id, fp.pageview_url AS landing_page, ws.utm_source
-    FROM first_pv fp
-    JOIN website_sessions ws ON ws.website_session_id = fp.website_session_id
-    WHERE fp.rn = 1
-),
-lp_counts AS (
-    SELECT COALESCE(utm_source, '(direct/none)') AS utm_source, landing_page, COUNT(*) AS sessions
-    FROM landing_pages
-    GROUP BY utm_source, landing_page
-),
-ranked AS (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY utm_source ORDER BY sessions DESC) AS rn
-    FROM lp_counts
-)
-SELECT utm_source, landing_page, sessions
-FROM ranked
-WHERE rn <= 3
-ORDER BY utm_source, rn;
-
-
 
 /*
-	Q18.	As a data-quality check, use `ROW_NUMBER()` to identify any duplicate `order_items` rows — 
+	Q18. As a data-quality check, use `ROW_NUMBER()` to identify any duplicate `order_items` rows — 
 		   i.e., the same `order_id` + `product_id` + `price_usd` combination appearing more than once.
-	*/
+*/
 	
 WITH cte AS(
 	
@@ -402,6 +370,56 @@ WITH cte AS(
 								ORDER BY created_at) as [rnk]
 		FROM order_items	
 	)
-SELECT * FROM CTE WHERE rnk > 1
+SELECT * FROM CTE WHERE rnk > 1;
 
 
+
+/*Q19.  
+		Build a landing-page conversion funnel. For each distinct landing page (`/lander-1` through `/lander-5`), 
+		calculate the percentage of sessions that reached `/cart`, then `/shipping`, then `/billing` (or `/billing-2`), 
+		then `/thank-you-for-your-order`. Which landing page converts best, and at which funnel step does the biggest drop-off happen?
+*/
+
+
+WITH cte1 AS (
+    SELECT 
+        MIN(website_pageview_id) AS first_pageview_id,
+        website_session_id
+    FROM website_pageviews
+    GROUP BY website_session_id
+),
+first_pv AS (
+    SELECT 
+        cte1.website_session_id,
+        w.pageview_url AS landing_page
+    FROM cte1 
+    JOIN website_pageviews w 
+        ON cte1.first_pageview_id = w.website_pageview_id
+    WHERE w.pageview_url LIKE '/lander%'     
+),
+session_funnel_flags AS (
+    SELECT 
+        f.website_session_id,
+        f.landing_page,                        
+        MAX(CASE WHEN w.pageview_url = '/cart' THEN 1 ELSE 0 END) AS to_cart,
+        MAX(CASE WHEN w.pageview_url = '/shipping' THEN 1 ELSE 0 END) AS to_shipping,
+        MAX(CASE WHEN w.pageview_url IN ('/billing', '/billing-2') THEN 1 ELSE 0 END) AS to_billing,
+        MAX(CASE WHEN w.pageview_url = '/thank-you-for-your-order' THEN 1 ELSE 0 END) AS to_purchased
+    FROM first_pv f
+	JOIN website_pageviews w 
+		ON f.website_session_id = w.website_session_id
+    GROUP BY f.website_session_id, f.landing_page   
+)
+SELECT 
+	landing_page,
+	count(to_cart) as [cart],
+	SUM(to_cart) as [cart sum],
+	round(100 * cast(SUM(to_cart) as float) / count(to_cart) , 2) as [percen],
+	SUM(to_shipping),
+	SUM(to_billing),
+	count(to_purchased) as [total_purchased cnts],
+	SUM(to_purchased)as [ outcome_purchased],
+	round(100 * cast(SUM(to_purchased) as float) / count(to_purchased) , 2) as [success]
+FROM session_funnel_flags
+GROUP BY landing_page
+ORDER BY landing_page;
