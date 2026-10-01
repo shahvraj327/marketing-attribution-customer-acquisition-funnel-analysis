@@ -412,14 +412,18 @@ session_funnel_flags AS (
 )
 SELECT 
 	landing_page,
-	count(to_cart) as [cart],
-	SUM(to_cart) as [cart sum],
-	round(100 * cast(SUM(to_cart) as float) / count(to_cart) , 2) as [percen],
-	SUM(to_shipping),
-	SUM(to_billing),
-	count(to_purchased) as [total_purchased cnts],
-	SUM(to_purchased)as [ outcome_purchased],
-	round(100 * cast(SUM(to_purchased) as float) / count(to_purchased) , 2) as [success]
+	ROUND(100 * (CAST(SUM(to_cart) AS FLOAT) - COUNT(landing_page)) / COUNT(landing_page), 2)  AS landing_to_cart_chg_pct,
+	ROUND(100 * (CAST(SUM(to_shipping) AS FLOAT) - SUM(to_cart)) / SUM(to_cart), 2)  AS cart_to_shipping_chg_pct,
+	ROUND(100 * (CAST(SUM(to_billing) AS FLOAT) - SUM(to_shipping)) / SUM(to_shipping), 2)  AS shipping_to_billing_chg_pct,
+	ROUND(100 * (CAST(SUM(to_purchased) AS FLOAT) - SUM(to_billing)) / SUM(to_billing), 2)  AS billing_to_order_chg_pct
+
 FROM session_funnel_flags
 GROUP BY landing_page
 ORDER BY landing_page;
+
+
+
+/*	Q20. Compare acquisition channels on a customer-lifetime basis: for each `utm_source` a user was *first* acquired through, 
+		 calculate average revenue per user and repeat purchase rate across that user's entire history (not just their first order).
+*/
+
