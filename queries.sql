@@ -424,6 +424,52 @@ ORDER BY landing_page;
 
 
 /*	Q20. Compare acquisition channels on a customer-lifetime basis: for each `utm_source` a user was *first* acquired through, 
-		 calculate average revenue per user and repeat purchase rate across that user's entire history (not just their first order).
+		 calculate average revenue per user (ARPU) and repeat purchase rate across that user's entire history (not just their first order).
 */
 
+
+WITH first_session_per_user AS (
+    SELECT 
+        user_id,
+        MIN(website_session_id) AS first_session_id
+    FROM website_sessions
+    GROUP BY user_id
+),
+user_channel AS (
+    SELECT 
+        f.user_id,
+       CASE WHEN s.utm_source LIKE 'Null%' THEN 'Direct/Organic' ELSE s.utm_source END  AS acquisition_channel
+    FROM first_session_per_user f
+    JOIN website_sessions s 
+        ON f.first_session_id = s.website_session_id
+),
+user_orders AS (
+    SELECT 
+        user_id,
+        COUNT(order_id)  AS total_orders,
+        SUM(price_usd)   AS total_revenue
+    FROM orders
+    GROUP BY user_id
+),
+user_summary AS (
+    SELECT 
+        c.user_id,
+        c.acquisition_channel,
+        o.total_orders,
+        o.total_revenue
+    FROM user_channel c
+    LEFT JOIN user_orders o 
+        ON c.user_id = o.user_id
+)
+SELECT 
+	acquisition_channel,
+	COUNT(user_id) AS [total users],
+	COUNT(total_orders) AS buyers,
+	SUM(CASE WHEN total_orders >= 2 THEN 1 ELSE 0 END ) [repeated buyers],
+	ROUND(SUM(total_revenue), 2) AS [total revenue],
+	ROUND(SUM(total_revenue) / count(user_id),2)  AS ARPU,
+	ROUND(100 * SUM(CASE WHEN total_orders >= 2 THEN 1 ELSE 0 END ) / CAST(COUNT(total_orders) AS FLOAT) ,2)AS [repeat purchase rate]
+
+FROM user_summary
+GROUP BY acquisition_channel
+order by acquisition_channel;
